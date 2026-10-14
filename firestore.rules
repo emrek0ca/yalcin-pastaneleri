@@ -1,0 +1,200 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model & Architecture Documentation
+// ===============================================================
+//
+// Application: Yalçın Pastaneleri (Osmaniye, Turkey)
+// Project ID: yalcin-pastaneleri
+// Reference Date: 2026-10-14
+//
+// Collections & Schemas:
+//
+// 1. /branches/{branchId}
+//    - id: string (branch identifier, e.g. 'raufbey', 'adnan-menderes')
+//    - name: string (e.g. 'Raufbey Şubesi')
+//    - address: string, phone: string, openingHours: string, orderHours: string
+//    - coordinates: map { lat: float, lng: float }
+//    - status: string ('verified' | 'provisional')
+//    - isDeliveryAvailable: bool, isPickupAvailable: bool
+//    - Read: Public (allow read: if true;)
+//    - Write: Admin only (request.auth.token.admin == true)
+//
+// 2. /categories/{categoryId}
+//    - id: string, name: string, slug: string, displayOrder: int
+//    - imageUrl: string, localAsset: string, description: string
+//    - status: string ('verified')
+//    - Read: Public (allow read: if true;)
+//    - Write: Admin only (request.auth.token.admin == true)
+//
+// 3. /products/{productId}
+//    - id: string, categoryId: string, name: string, slug: string
+//    - basePriceCents: int (in kuruş, e.g. 28000 = 280.00 TL)
+//    - isAvailable: bool, isDeliveryAvailable: bool, unit: string
+//    - description: string, rawImageUrl: string, localAsset: string
+//    - Read: Public (allow read: if true;)
+//    - Write: Admin only (request.auth.token.admin == true)
+//
+// 4. /branch_offerings/{offeringId}
+//    - id: string, branchId: string, productId: string
+//    - isAvailable: bool, isDeliveryAvailable: bool, customPriceCents: int
+//    - Read: Public (allow read: if true;)
+//    - Write: Admin only (request.auth.token.admin == true)
+//
+// 5. /orders/{orderId}
+//    - orderNumber: string (e.g. 'YLC-20261014-1234')
+//    - branchId: string
+//    - customerId: string (optional if guest, or auth.uid)
+//    - customerName: string (length 2-100)
+//    - customerPhone: string (Turkish format: 05... or +905...)
+//    - orderType: string ('delivery' | 'pickup')
+//    - status: string ('received' on create)
+//    - subtotalCents: int (> 0)
+//    - totalCents: int (> 0)
+//    - items: list of order item maps (size > 0)
+//    - Read: Customer owner (resource.data.customerId == request.auth.uid),
+//            admin (request.auth.token.admin == true),
+//            or orderNumber claim match (resource.data.orderNumber == request.auth.token.orderNumber)
+//    - Update: Admin only (request.auth.token.admin == true)
+//    - Delete: Disallowed (false)
+//
+// 6. /custom_cake_requests/{requestId}
+//    - requestNumber: string (e.g. 'PST-20261014-5678')
+//    - branchId: string
+//    - customerId: string (auth.uid)
+//    - customerName: string (length 2-100)
+//    - customerPhone: string (Turkish format: 05... or +905...)
+//    - deliveryDate: string (ISO/date format YYYY-MM-DD)
+//    - servingSize: string (e.g. '10-12 kişilik')
+//    - status: string ('submitted' on create)
+//    - quoteCents: int (optional, set by admin)
+//    - Read: Customer owner (resource.data.customerId == request.auth.uid) or admin
+//    - Update: Admin, or customer owner accepting quote (status == 'accepted')
+//    - Delete: Disallowed (false)
+//
+// 7. /devices/{deviceId}
+//    - token: string (FCM device push token)
+//    - platform: string ('ios' | 'android' | 'web')
+//    - customerId: string (optional)
+//    - Read: Admin only (request.auth.token.admin == true)
+//    - Write: Validated token is string and platform in ['ios', 'android', 'web']
+//
+// 8. Fallback:
+//    - Default deny on all other paths
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions & Domain Validation Predicates
+    // ===============================================================
+
+
+    // Check if string matches Turkish mobile phone format (05XXXXXXXXX or +905XXXXXXXXX)
+    function isValidTurkishPhone(phone) {
+      return phone is string &&
+        (phone.matches('^05[0-9]{9}$') || phone.matches('^\\+905[0-9]{9}$'));
+    }
+
+    // Validate order creation data integrity, bounds, and business constraints
+    function isValidOrder(data) {
+      return data.customerName is string &&
+        data.customerName.size() >= 2 &&
+        data.customerName.size() <= 100 &&
+        isValidTurkishPhone(data.customerPhone) &&
+        data.orderType in ['delivery', 'pickup'] &&
+        data.status == 'received' &&
+        data.subtotalCents is int &&
+        data.subtotalCents > 0 &&
+        data.totalCents is int &&
+        data.totalCents > 0 &&
+        data.items is list &&
+        data.items.size() > 0 &&
+        data.items.size() <= 100;
+    }
+
+    // Validate custom cake request creation data integrity and required attributes
+    function isValidCustomCakeRequest(data) {
+      return data.customerName is string &&
+        data.customerName.size() >= 2 &&
+        data.customerName.size() <= 100 &&
+        isValidTurkishPhone(data.customerPhone) &&
+        data.deliveryDate is string &&
+        data.deliveryDate.size() >= 10 &&
+        data.deliveryDate.size() <= 30 &&
+        data.servingSize is string &&
+        data.servingSize.size() >= 1 &&
+        data.servingSize.size() <= 100 &&
+        data.status == 'submitted';
+    }
+
+    // Validate FCM device registration payload and resource exhaustion limits
+    function isValidDevice(data) {
+      return data.token is string &&
+        data.token.size() > 0 &&
+        data.token.size() <= 1000 &&
+        data.platform in ['ios', 'android', 'web'];
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // 1. Branches Collection
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // 2. Categories Collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // 3. Products Collection
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // 4. Branch Offerings Collection
+    match /branch_offerings/{offeringId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // 5. Orders Collection
+    match /orders/{orderId} {
+      allow create: if isValidOrder(request.resource.data);
+      allow read: if (request.auth != null && (resource.data.customerId == request.auth.uid || request.auth.token.admin == true)) ||
+                     (request.auth != null && resource.data.orderNumber == request.auth.token.orderNumber);
+      allow update: if request.auth != null && request.auth.token.admin == true;
+      allow delete: if false;
+    }
+
+    // 6. Custom Cake Requests Collection
+    match /custom_cake_requests/{requestId} {
+      allow create: if isValidCustomCakeRequest(request.resource.data);
+      allow read: if request.auth != null && (resource.data.customerId == request.auth.uid || request.auth.token.admin == true);
+      allow update: if (request.auth != null && request.auth.token.admin == true) ||
+                       (request.auth != null && resource.data.customerId == request.auth.uid && request.resource.data.status == 'accepted');
+      allow delete: if false;
+    }
+
+    // 7. Devices Collection (FCM Registration)
+    match /devices/{deviceId} {
+      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.resource.data.token is string &&
+                      request.resource.data.platform in ['ios', 'android', 'web'] &&
+                      isValidDevice(request.resource.data);
+    }
+
+    // 8. Default Fallback - Deny all undefined paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

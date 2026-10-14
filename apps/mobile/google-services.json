@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "746379317680",
+    "project_id": "yalcin-pastaneleri",
+    "storage_bucket": "yalcin-pastaneleri.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:746379317680:android:31afdbbae460c373a08675",
+        "android_client_info": {
+          "package_name": "com.yalcinpastaneleri.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABTKLXjm2oVTCRQohayxTDMTpdubpwjrE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

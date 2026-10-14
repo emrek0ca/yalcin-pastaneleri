@@ -1,0 +1,29 @@
+{
+  "name": "@yalcin/mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@yalcin/shared": "*",
+    "expo": "^57.0.0",
+    "expo-status-bar": "~57.0.1",
+    "firebase": "^13.0.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "~19.2.0",
+    "babel-preset-expo": "^57.0.15",
+    "typescript": "^5.4.5"
+  },
+  "private": true
+}

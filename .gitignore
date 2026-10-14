@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp/
+.pnp.js
+
+# Next.js
+.next/
+**/.next/
+out/
+**/out/
+
+# Build artifacts
+dist/
+**/dist/
+build/
+**/build/
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# iOS & CocoaPods
+Pods/
+**/Pods/
+Podfile.lock
+**/Podfile.lock
+DerivedData/
+**/DerivedData/
+*.xcuserstate
+**/*.xcuserstate
+*.xcuserdatad
+**/*.xcuserdatad
+*.xcscmblueprint
+**/*.xcscmblueprint
+
+# Expo
+.expo/
+**/.expo/
+web-build/
+**/web-build/
+
+# Android
+.gradle/
+**/.gradle/
+local.properties
+*.apk
+*.aab
+
+# OS & Editor
+.DS_Store
+**/.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.turbo/
