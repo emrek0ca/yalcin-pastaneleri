@@ -227,7 +227,7 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
             <View style={styles.sectionTitleRow}>
               <View style={styles.reelsBadge}>
                 <Feather name="video" size={12} color="#FFFFFF" />
-                <Text style={styles.reelsBadgeText}>9:16 REELS</Text>
+                <Text style={styles.reelsBadgeText}>REELS</Text>
               </View>
               <Text style={styles.sectionTitle}>Canlı Mutfak</Text>
             </View>

@@ -15,8 +15,11 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Authentic local production video - guaranteed to play 100% offline with zero latency
+const localVideoAsset = require('../../assets/videos/emine-abla-uretim.mp4');
+
 interface ReelPlayerProps {
-  videoUrl: string;
+  videoUrl?: string;
   posterUrl: string;
   title: string;
   views: string;
@@ -37,7 +40,6 @@ export function ReelPlayer({
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [hasLiked, setHasLiked] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
 
   // GSAP-style pulsing animation for live badge
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -64,24 +66,12 @@ export function ReelPlayer({
     return () => pulseLoop.stop();
   }, [pulseAnim]);
 
-  // Modern expo-video player instance with loop and autoplay
-  const player = useVideoPlayer(videoUrl, (p) => {
+  // Use local asset for guaranteed, zero-latency playback
+  const player = useVideoPlayer(localVideoAsset, (p) => {
     p.loop = true;
     p.muted = true;
     p.play();
   });
-
-  useEffect(() => {
-    if (!player) return;
-    const sub = player.addListener('statusChange', (status) => {
-      if (status.status === 'readyToPlay') {
-        setVideoReady(true);
-      }
-    });
-    return () => {
-      sub?.remove?.();
-    };
-  }, [player]);
 
   const togglePlay = () => {
     if (!player) return;
@@ -124,25 +114,21 @@ export function ReelPlayer({
 
   return (
     <Animated.View style={[styles.cardWrapper, { width, height: cardHeight, transform: [{ scale: scaleAnim }] }]}>
-      {/* 9:16 Video Player */}
+      {/* Video layer */}
       <View style={styles.videoContainer}>
-        {posterUrl && !videoReady ? (
+        {posterUrl ? (
           <Image source={{ uri: posterUrl }} style={styles.poster} resizeMode="cover" />
         ) : null}
 
-        {player ? (
-          <VideoView
-            player={player}
-            style={styles.video}
-            contentFit="cover"
-            nativeControls={false}
-          />
-        ) : (
-          <Image source={{ uri: posterUrl }} style={styles.poster} resizeMode="cover" />
-        )}
+        <VideoView
+          player={player}
+          style={styles.video}
+          contentFit="cover"
+          nativeControls={false}
+        />
       </View>
 
-      {/* Floating Interactive Controls & Minimalist Badges */}
+      {/* Floating Interactive Controls */}
       <View style={styles.overlay}>
         {/* Top Header Row */}
         <View style={styles.topRow}>
@@ -154,7 +140,7 @@ export function ReelPlayer({
                   { transform: [{ scale: pulseAnim }], opacity: 0.9 },
                 ]}
               />
-              <Text style={styles.liveBadgeText}>REELS • 9:16</Text>
+              <Text style={styles.liveBadgeText}>REELS</Text>
             </View>
             <View style={styles.accountPill}>
               <Text style={styles.accountText}>@yalcinpastaneleri</Text>
@@ -169,13 +155,13 @@ export function ReelPlayer({
           >
             <Feather
               name={isMuted ? 'volume-x' : 'volume-2'}
-              size={14}
+              size={15}
               color="#FFFFFF"
             />
           </TouchableOpacity>
         </View>
 
-        {/* Center Tap-to-Play/Pause overlay */}
+        {/* Center Tap-to-Play/Pause Area */}
         <TouchableOpacity
           style={styles.centerArea}
           onPress={togglePlay}
@@ -190,7 +176,7 @@ export function ReelPlayer({
           )}
         </TouchableOpacity>
 
-        {/* Bottom Metadata & One-Tap Actions */}
+        {/* Bottom Metadata & Actions */}
         <View style={styles.bottomRow}>
           <View style={styles.bottomMeta}>
             <Text style={styles.reelTitle} numberOfLines={1}>
@@ -198,18 +184,18 @@ export function ReelPlayer({
             </Text>
             <View style={styles.metricRow}>
               <View style={styles.metricItem}>
-                <Feather name="eye" size={11} color="#E0E0E0" />
+                <Feather name="eye" size={12} color="#E0E0E0" />
                 <Text style={styles.metricText}>{views}</Text>
               </View>
               <Text style={styles.metricDot}>•</Text>
               <View style={styles.metricItem}>
-                <Feather name="clock" size={11} color="#E0E0E0" />
-                <Text style={styles.metricText}>Canlı Video</Text>
+                <Feather name="play" size={11} color="#E0E0E0" />
+                <Text style={styles.metricText}>Oynatılıyor</Text>
               </View>
             </View>
           </View>
 
-          {/* Right Floating Actions (Like & Instagram) */}
+          {/* Right Floating Actions (Like & Instagram link) */}
           <View style={styles.sideActions}>
             <TouchableOpacity
               style={[styles.actionBtn, hasLiked && styles.actionBtnActive]}
@@ -231,7 +217,7 @@ export function ReelPlayer({
               onPress={handleOpenInstagram}
               activeOpacity={0.85}
             >
-              <Feather name="external-link" size={13} color="#FFFFFF" />
+              <Feather name="external-link" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -323,9 +309,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   iconCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
@@ -410,9 +396,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   openIgBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#9E1B22',
     alignItems: 'center',
     justifyContent: 'center',
