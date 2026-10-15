@@ -150,6 +150,9 @@ export function MenuScreen() {
                 onPress={() => setSelectedCategory(c.slug)}
                 activeOpacity={0.7}
               >
+                {c.imageUrl ? (
+                  <Image source={{ uri: c.imageUrl }} style={styles.catTabThumb} />
+                ) : null}
                 <Text
                   style={[styles.categoryTabText, active && styles.categoryTabTextActive]}
                 >
@@ -202,12 +205,7 @@ export function MenuScreen() {
                 {/* Product Info */}
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemCategory}>{item.categoryName.toUpperCase()}</Text>
-                  <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-                  {item.description ? (
-                    <Text style={styles.itemDesc} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-                  ) : null}
+                  <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
 
                   <View style={styles.itemFooter}>
                     <Text style={styles.itemPrice}>{item.priceFormatted}</Text>
@@ -313,6 +311,13 @@ const styles = StyleSheet.create({
   categoryTabActive: {
     backgroundColor: '#9E1B22',
     borderColor: '#9E1B22',
+  },
+  catTabThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 6,
+    backgroundColor: '#EAEAEA',
   },
   categoryTabText: {
     fontSize: 12,

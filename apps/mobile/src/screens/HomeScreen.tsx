@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Modal,
   Linking,
   Dimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useMobile } from '../context/MobileContext';
@@ -22,6 +24,7 @@ import {
   InstagramFeed,
   InstagramStory,
 } from '../api';
+import { ReelPlayer } from '../components/ReelPlayer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -39,6 +42,73 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
+  // GSAP-style physics and entrance animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const storyPulseAnim = useRef(new Animated.Value(1)).current;
+  const storyProgressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // 1. GSAP-style staggered entrance
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 850,
+        easing: Easing.bezier(0.16, 1, 0.3, 1), // GSAP power4.out
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 850,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // 2. Breathing pulse loop for story rings
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(storyPulseAnim, {
+          toValue: 1.06,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(storyPulseAnim, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseLoop.start();
+
+    return () => pulseLoop.stop();
+  }, [fadeAnim, slideAnim, storyPulseAnim]);
+
+  // Story progress animation when activeStoryIndex changes
+  useEffect(() => {
+    if (activeStoryIndex !== null) {
+      storyProgressAnim.setValue(0);
+      Animated.timing(storyProgressAnim, {
+        toValue: 1,
+        duration: 5000,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        if (finished) {
+          const storiesCount = feed?.stories?.length || 0;
+          if (activeStoryIndex < storiesCount - 1) {
+            setActiveStoryIndex(activeStoryIndex + 1);
+          } else {
+            setActiveStoryIndex(null);
+          }
+        }
+      });
+    }
+  }, [activeStoryIndex, feed?.stories?.length, storyProgressAnim]);
+
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
@@ -49,7 +119,7 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
           getInstagramFeed(),
         ]);
         if (isMounted) {
-          setCategories(cats.slice(0, 10));
+          setCategories(cats);
           // Pick 6 prominent items with authentic pictures
           const signature = prods
             .filter((p) => p.imageUrl && p.imageUrl.length > 5)
@@ -89,299 +159,304 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
   const currentStory: InstagramStory | null =
     activeStoryIndex !== null && stories[activeStoryIndex] ? stories[activeStoryIndex] : null;
 
+  const reels = feed?.reels && feed.reels.length > 0 ? feed.reels : feed?.latestReel ? [feed.latestReel] : [];
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* 1. Sleek Header */}
-      <View style={styles.header}>
-        <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>YALÇIN PASTANELERİ</Text>
-          <View style={styles.badgeRow}>
-            <Text style={styles.brandBadge}>1997</Text>
-            <Text style={styles.brandDot}>•</Text>
-            <Text style={styles.brandSubtitle}>OSMANİYE</Text>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        {/* 1. Sleek Apple-Minimal Header */}
+        <View style={styles.header}>
+          <View style={styles.brandContainer}>
+            <Text style={styles.brandTitle}>YALÇIN PASTANELERİ</Text>
+            <View style={styles.badgeRow}>
+              <Text style={styles.brandBadge}>1997</Text>
+              <Text style={styles.brandDot}>•</Text>
+              <Text style={styles.brandSubtitle}>OSMANİYE</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Branch Selector Pill */}
-        <TouchableOpacity
-          style={styles.branchButton}
-          onPress={() => setIsBranchModalOpen(true)}
-          activeOpacity={0.8}
-        >
-          <Feather name="map-pin" size={12} color="#9E1B22" />
-          <Text style={styles.branchButtonText} numberOfLines={1}>
-            {selectedBranch.name.split(' ')[0]}
-          </Text>
-          <Feather name="chevron-down" size={12} color="#737373" />
-        </TouchableOpacity>
-      </View>
-
-      {/* 2. INSTAGRAM STORIES BAR */}
-      {stories.length > 0 && (
-        <View style={styles.storiesSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.storiesScroll}
-          >
-            {stories.map((story, index) => (
-              <TouchableOpacity
-                key={story.id}
-                style={styles.storyBubble}
-                onPress={() => setActiveStoryIndex(index)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.storyRing}>
-                  <Image source={{ uri: story.imageUrl }} style={styles.storyAvatar} />
-                </View>
-                <Text style={styles.storyTitle} numberOfLines={1}>
-                  {story.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* 3. REELS VİTRİNİ (CANLI VİDEO / REEL KARTI) */}
-      {feed?.latestReel && (
-        <View style={styles.sectionPadding}>
+          {/* Branch Selector Pill */}
           <TouchableOpacity
-            style={styles.reelCard}
-            onPress={() => handleOpenInstagram(feed.latestReel.instagramUrl)}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: feed.latestReel.posterUrl }}
-              style={styles.reelBackground}
-              resizeMode="cover"
-            />
-            {/* Dark gradient overlay */}
-            <View style={styles.reelOverlay}>
-              <View style={styles.reelTopRow}>
-                <View style={styles.reelBadge}>
-                  <Feather name="video" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.reelBadgeText}>REELS</Text>
-                </View>
-                <View style={styles.reelAccountPill}>
-                  <Text style={styles.reelAccountText}>@yalcinpastaneleri</Text>
-                </View>
-              </View>
-
-              <View style={styles.reelCenterPlay}>
-                <View style={styles.playIconCircle}>
-                  <Feather name="play" size={20} color="#FFFFFF" style={{ marginLeft: 3 }} />
-                </View>
-              </View>
-
-              <View style={styles.reelBottomRow}>
-                <View>
-                  <Text style={styles.reelTitle}>{feed.latestReel.title}</Text>
-                  <Text style={styles.reelMeta}>{feed.latestReel.views} izlenme</Text>
-                </View>
-                <View style={styles.reelWatchBtn}>
-                  <Text style={styles.reelWatchText}>İzle</Text>
-                  <Feather name="arrow-right" size={12} color="#FFFFFF" />
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* 4. GÜNÜN PAYLAŞIMI (INSTAGRAM FOTOĞRAFI) */}
-      {feed?.latestPost && (
-        <View style={styles.sectionPadding}>
-          <TouchableOpacity
-            style={styles.postCard}
-            onPress={() => handleOpenInstagram(feed.latestPost.instagramUrl)}
-            activeOpacity={0.9}
-          >
-            <Image
-              source={{ uri: feed.latestPost.imageUrl }}
-              style={styles.postImage}
-              resizeMode="cover"
-            />
-            <View style={styles.postOverlay}>
-              <View style={styles.postBadge}>
-                <Text style={styles.postBadgeText}>GÜNÜN PAYLAŞIMI</Text>
-              </View>
-              <View style={styles.postFooter}>
-                <Text style={styles.postTitle} numberOfLines={1}>
-                  {feed.latestPost.title}
-                </Text>
-                <View style={styles.postLikes}>
-                  <Feather name="heart" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.postLikesText}>{feed.latestPost.likes}</Text>
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* 5. KATEGORİLER */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Kategoriler</Text>
-        <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
-          <Text style={styles.sectionLink}>Tümü ({categories.length})</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryScroll}
-      >
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat.id || cat.slug}
-            style={styles.catCard}
-            onPress={() => onNavigateToMenu(cat.slug)}
+            style={styles.branchButton}
+            onPress={() => setIsBranchModalOpen(true)}
             activeOpacity={0.8}
           >
-            <View style={styles.catIconWrap}>
-              {cat.imageUrl ? (
-                <Image source={{ uri: cat.imageUrl }} style={styles.catImg} resizeMode="cover" />
-              ) : (
-                <Feather name="coffee" size={18} color="#9E1B22" />
-              )}
-            </View>
-            <Text style={styles.catName} numberOfLines={1}>
-              {cat.name}
+            <Feather name="map-pin" size={12} color="#9E1B22" />
+            <Text style={styles.branchButtonText} numberOfLines={1}>
+              {selectedBranch.name.split(' ')[0]}
             </Text>
+            <Feather name="chevron-down" size={12} color="#737373" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        </View>
 
-      {/* 6. ÖZEL GÜN PASTASI (MINIMAL GÖRSEL KART) */}
-      <View style={styles.sectionPadding}>
-        <TouchableOpacity
-          style={styles.customCakeCard}
-          onPress={onNavigateToCustomCake}
-          activeOpacity={0.9}
-        >
-          <View style={styles.customCakeContent}>
-            <View style={styles.customCakeBadge}>
-              <Text style={styles.customCakeBadgeText}>BUTİK SİPARİŞ</Text>
-            </View>
-            <Text style={styles.customCakeHeading}>Özel Gün Pastası Tasarla</Text>
-          </View>
-          <View style={styles.customCakeBtn}>
-            <Feather name="arrow-right" size={16} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* 7. İMZA LEZZETLER (GÖRSEL ODAKLI) */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>İmza Lezzetler</Text>
-        <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
-          <Text style={styles.sectionLink}>Tümünü Gör</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.signatureGrid}>
-        {signatureItems.map((item) => {
-          const isAdded = !!addedIds[item.id];
-
-          return (
-            <View key={item.id} style={styles.productCard}>
-              <View style={styles.productImageContainer}>
-                {item.imageUrl ? (
-                  <Image
-                    source={{ uri: item.imageUrl }}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.productImagePlaceholder}>
-                    <Feather name="image" size={24} color="#A3A3A3" />
-                  </View>
-                )}
-                <View style={styles.productBadge}>
-                  <Text style={styles.productBadgeText}>{item.categoryName.toUpperCase()}</Text>
-                </View>
-              </View>
-
-              <View style={styles.productBody}>
-                <Text style={styles.productName} numberOfLines={1}>
-                  {item.title}
-                </Text>
-
-                <View style={styles.productFooter}>
-                  <Text style={styles.productPrice}>{item.priceFormatted}</Text>
-                  <TouchableOpacity
-                    style={[styles.addButton, isAdded && styles.addButtonSuccess]}
-                    onPress={() => handleAdd(item)}
-                    activeOpacity={0.8}
-                  >
-                    <Feather
-                      name={isAdded ? 'check' : 'plus'}
-                      size={14}
-                      color={isAdded ? '#FFFFFF' : '#9E1B22'}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* 8. ŞUBELER */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Şubelerimiz</Text>
-      </View>
-
-      <View style={styles.branchesContainer}>
-        {VERIFIED_BRANCHES.map((b) => {
-          const isSelected = selectedBranch.id === b.id;
-
-          return (
-            <TouchableOpacity
-              key={b.id}
-              style={[styles.branchCard, isSelected && styles.branchCardActive]}
-              onPress={() => setSelectedBranch(b)}
-              activeOpacity={0.9}
+        {/* 2. INSTAGRAM STORIES BAR WITH BREATHING PULSE */}
+        {stories.length > 0 && (
+          <View style={styles.storiesSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.storiesScroll}
             >
-              <View style={styles.branchHeaderRow}>
-                <View style={styles.branchTitleWrap}>
-                  <Feather
-                    name="map-pin"
-                    size={14}
-                    color={isSelected ? '#9E1B22' : '#737373'}
-                  />
-                  <Text style={styles.branchName}>{b.name}</Text>
-                </View>
-                {isSelected && (
-                  <View style={styles.activeCheck}>
-                    <Feather name="check" size={12} color="#FFFFFF" />
-                  </View>
-                )}
-              </View>
-              <Text style={styles.branchAddress}>{b.address}</Text>
-              <View style={styles.branchInfoRow}>
-                <View style={styles.branchInfoItem}>
-                  <Feather name="clock" size={11} color="#737373" />
-                  <Text style={styles.branchInfoText}>{b.openingHours}</Text>
-                </View>
+              {stories.map((story, index) => (
                 <TouchableOpacity
-                  style={styles.branchInfoItem}
-                  onPress={() => Linking.openURL(`tel:${b.phone}`)}
+                  key={story.id}
+                  style={styles.storyBubble}
+                  onPress={() => setActiveStoryIndex(index)}
+                  activeOpacity={0.85}
                 >
-                  <Feather name="phone" size={11} color="#9E1B22" />
-                  <Text style={[styles.branchInfoText, { color: '#9E1B22', fontWeight: '600' }]}>
-                    {b.phone}
+                  <Animated.View
+                    style={[
+                      styles.storyRing,
+                      index === 0 && { transform: [{ scale: storyPulseAnim }] },
+                    ]}
+                  >
+                    <Image source={{ uri: story.imageUrl }} style={styles.storyAvatar} />
+                  </Animated.View>
+                  <Text style={styles.storyTitle} numberOfLines={1}>
+                    {story.title}
                   </Text>
                 </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 3. DIRECT VIDEO PLAYBACK (9:16 REELS VITRINI) */}
+        {reels.length > 0 && (
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.reelsBadge}>
+                <Feather name="video" size={12} color="#FFFFFF" />
+                <Text style={styles.reelsBadgeText}>9:16 REELS</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Canlı Mutfak</Text>
+            </View>
+            <TouchableOpacity onPress={() => handleOpenInstagram()} activeOpacity={0.7}>
+              <Feather name="instagram" size={16} color="#9E1B22" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {reels.length > 0 && (
+          <View style={styles.reelsScrollWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.reelsHorizontalScroll}
+              decelerationRate="fast"
+              snapToInterval={SCREEN_WIDTH * 0.75 + 14}
+            >
+              {reels.map((reel) => (
+                <View key={reel.id} style={styles.reelItemWrapper}>
+                  <ReelPlayer
+                    videoUrl={reel.videoUrl}
+                    posterUrl={reel.posterUrl}
+                    title={reel.title}
+                    views={reel.views}
+                    likes={reel.likes}
+                    instagramUrl={reel.instagramUrl}
+                    width={SCREEN_WIDTH * 0.75}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 4. GÜNÜN PAYLAŞIMI (INSTAGRAM FOTOĞRAFI) */}
+        {feed?.latestPost && (
+          <View style={styles.sectionPadding}>
+            <TouchableOpacity
+              style={styles.postCard}
+              onPress={() => handleOpenInstagram(feed.latestPost.instagramUrl)}
+              activeOpacity={0.9}
+            >
+              <Image
+                source={{ uri: feed.latestPost.imageUrl }}
+                style={styles.postImage}
+                resizeMode="cover"
+              />
+              <View style={styles.postOverlay}>
+                <View style={styles.postBadge}>
+                  <Text style={styles.postBadgeText}>GÜNÜN PAYLAŞIMI</Text>
+                </View>
+                <View style={styles.postFooter}>
+                  <Text style={styles.postTitle} numberOfLines={1}>
+                    {feed.latestPost.title}
+                  </Text>
+                  <View style={styles.postLikes}>
+                    <Feather name="heart" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.postLikesText}>{feed.latestPost.likes}</Text>
+                  </View>
+                </View>
               </View>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          </View>
+        )}
 
-      <View style={{ height: 40 }} />
+        {/* 5. KATEGORİLER (FOTOĞRAFLI DAİRESEL KARTLAR) */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Kategoriler</Text>
+          <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
+            <Text style={styles.sectionLink}>Tümü ({categories.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat.id || cat.slug}
+              style={styles.catCard}
+              onPress={() => onNavigateToMenu(cat.slug)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.catIconWrap}>
+                {cat.imageUrl ? (
+                  <Image source={{ uri: cat.imageUrl }} style={styles.catImg} resizeMode="cover" />
+                ) : (
+                  <Feather name="coffee" size={18} color="#9E1B22" />
+                )}
+              </View>
+              <Text style={styles.catName} numberOfLines={1}>
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* 6. ÖZEL GÜN PASTASI (MINIMAL GÖRSEL KART) */}
+        <View style={styles.sectionPadding}>
+          <TouchableOpacity
+            style={styles.customCakeCard}
+            onPress={onNavigateToCustomCake}
+            activeOpacity={0.9}
+          >
+            <View style={styles.customCakeContent}>
+              <View style={styles.customCakeBadge}>
+                <Text style={styles.customCakeBadgeText}>BUTİK TASARIM</Text>
+              </View>
+              <Text style={styles.customCakeHeading}>Özel Gün Pastası Tasarla</Text>
+            </View>
+            <View style={styles.customCakeBtn}>
+              <Feather name="arrow-right" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* 7. İMZA LEZZETLER (GÖRSEL ODAKLI BÜYÜK FOTOĞRAFLAR) */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>İmza Lezzetler</Text>
+          <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
+            <Text style={styles.sectionLink}>Tümünü Gör</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.signatureGrid}>
+          {signatureItems.map((item) => {
+            const isAdded = !!addedIds[item.id];
+
+            return (
+              <View key={item.id} style={styles.productCard}>
+                <View style={styles.productImageContainer}>
+                  {item.imageUrl ? (
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.productImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.productImagePlaceholder}>
+                      <Feather name="image" size={24} color="#A3A3A3" />
+                    </View>
+                  )}
+                  <View style={styles.productBadge}>
+                    <Text style={styles.productBadgeText}>{item.categoryName.toUpperCase()}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.productBody}>
+                  <Text style={styles.productName} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+
+                  <View style={styles.productFooter}>
+                    <Text style={styles.productPrice}>{item.priceFormatted}</Text>
+                    <TouchableOpacity
+                      style={[styles.addButton, isAdded && styles.addButtonSuccess]}
+                      onPress={() => handleAdd(item)}
+                      activeOpacity={0.8}
+                    >
+                      <Feather
+                        name={isAdded ? 'check' : 'plus'}
+                        size={14}
+                        color={isAdded ? '#FFFFFF' : '#9E1B22'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* 8. ŞUBELERİMİZ */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Şubelerimiz</Text>
+        </View>
+
+        <View style={styles.branchesContainer}>
+          {VERIFIED_BRANCHES.map((b) => {
+            const isSelected = selectedBranch.id === b.id;
+
+            return (
+              <TouchableOpacity
+                key={b.id}
+                style={[styles.branchCard, isSelected && styles.branchCardActive]}
+                onPress={() => setSelectedBranch(b)}
+                activeOpacity={0.9}
+              >
+                <View style={styles.branchHeaderRow}>
+                  <View style={styles.branchTitleWrap}>
+                    <Feather
+                      name="map-pin"
+                      size={14}
+                      color={isSelected ? '#9E1B22' : '#737373'}
+                    />
+                    <Text style={styles.branchName}>{b.name}</Text>
+                  </View>
+                  {isSelected && (
+                    <View style={styles.activeCheck}>
+                      <Feather name="check" size={12} color="#FFFFFF" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.branchAddress}>{b.address}</Text>
+                <View style={styles.branchInfoRow}>
+                  <View style={styles.branchInfoItem}>
+                    <Feather name="clock" size={11} color="#737373" />
+                    <Text style={styles.branchInfoText}>{b.openingHours}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.branchInfoItem}
+                    onPress={() => Linking.openURL(`tel:${b.phone}`)}
+                  >
+                    <Feather name="phone" size={11} color="#9E1B22" />
+                    <Text style={[styles.branchInfoText, { color: '#9E1B22', fontWeight: '600' }]}>
+                      {b.phone}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={{ height: 40 }} />
+      </Animated.View>
 
       {/* INSTAGRAM STORY VIEWER MODAL */}
       <Modal
@@ -394,23 +469,35 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
           <View style={styles.storyModalContainer}>
             {/* Top segmented progress bars */}
             <View style={styles.storyProgressContainer}>
-              {stories.map((s, idx) => (
-                <View key={s.id} style={styles.storyProgressTrack}>
-                  <View
-                    style={[
-                      styles.storyProgressBar,
-                      {
-                        width:
-                          idx < (activeStoryIndex ?? 0)
-                            ? '100%'
-                            : idx === activeStoryIndex
-                            ? '100%'
-                            : '0%',
-                      },
-                    ]}
-                  />
-                </View>
-              ))}
+              {stories.map((s, idx) => {
+                const isActive = idx === activeStoryIndex;
+                const isPassed = idx < (activeStoryIndex ?? 0);
+
+                return (
+                  <View key={s.id} style={styles.storyProgressTrack}>
+                    {isActive ? (
+                      <Animated.View
+                        style={[
+                          styles.storyProgressBar,
+                          {
+                            width: storyProgressAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0%', '100%'],
+                            }),
+                          },
+                        ]}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.storyProgressBar,
+                          { width: isPassed ? '100%' : '0%' },
+                        ]}
+                      />
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
             {/* Story Header */}
@@ -633,106 +720,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 14,
   },
-  // Reels Card
-  reelCard: {
-    height: 180,
-    borderRadius: 16,
+  // 9:16 Reels Section
+  reelsScrollWrap: {
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  reelsHorizontalScroll: {
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  reelItemWrapper: {
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#000000',
-    position: 'relative',
   },
-  reelBackground: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.85,
-  },
-  reelOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.38)',
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  reelTopRow: {
+  sectionTitleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
-  reelBadge: {
+  reelsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#9E1B22',
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 6,
-  },
-  reelBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  reelAccountPill: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  reelAccountText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  reelCenterPlay: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reelBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  reelTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  reelMeta: {
-    color: '#E0E0E0',
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  reelWatchBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 5,
     gap: 4,
-    backgroundColor: '#9E1B22',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
   },
-  reelWatchText: {
+  reelsBadgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   // Post Card
   postCard: {
-    height: 150,
+    height: 160,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#000000',
@@ -897,7 +920,7 @@ const styles = StyleSheet.create({
   },
   productImageContainer: {
     width: '100%',
-    height: 120,
+    height: 125,
     backgroundColor: '#F5F5F5',
     position: 'relative',
   },
