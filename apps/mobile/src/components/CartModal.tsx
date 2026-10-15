@@ -8,10 +8,11 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useMobile } from '../context/MobileContext';
-import { submitOrder } from '../api';
+import { submitOrder, formatOrderWhatsAppMessage } from '../api';
 
 interface CartModalProps {
   onOrderSuccess: (orderNumber: string) => void;
@@ -75,9 +76,36 @@ export function CartModal({ onOrderSuccess }: CartModalProps) {
       });
 
       addOrderToHistory(order);
+
+      // WhatsApp Ticketing: 0 server cost, instant real-time dispatch to the branch
+      const branchPhone = (selectedBranch.phone || '+90 544 648 60 40').replace(/[^0-9]/g, '');
+      const waMsg = formatOrderWhatsAppMessage({
+        orderNumber: order.orderNumber,
+        branchName: selectedBranch.name,
+        customerName: name,
+        customerPhone: phone,
+        orderType,
+        deliveryAddress: orderType === 'delivery' ? address : undefined,
+        items: cartItems.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          unitPriceCents: i.unitPriceCents,
+        })),
+        totalCents: subtotalCents,
+      });
+
       clearCart();
       setIsCartModalOpen(false);
       onOrderSuccess(order.orderNumber || (order as any).order_number);
+
+      const waUrl = `https://wa.me/${branchPhone}?text=${encodeURIComponent(waMsg)}`;
+      Linking.canOpenURL(waUrl)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(waUrl);
+          }
+        })
+        .catch(() => {});
     } catch (e: any) {
       Alert.alert('Sipariş Hatası', e.message || 'Sipariş iletilemedi');
     } finally {

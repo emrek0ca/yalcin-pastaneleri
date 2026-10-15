@@ -7,10 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useMobile } from '../context/MobileContext';
-import { submitCustomCake } from '../api';
+import { submitCustomCake, formatCustomCakeWhatsAppMessage } from '../api';
 
 export function CustomCakeScreen() {
   const { selectedBranch } = useMobile();
@@ -44,12 +45,54 @@ export function CustomCakeScreen() {
         notes: notes || undefined,
       });
 
-      setSubmittedCode((res as any).request_number || (res as any).requestNumber);
+      const code = (res as any).request_number || (res as any).requestNumber;
+      setSubmittedCode(code);
+
+      // WhatsApp Ticketing: 0 server cost, instant dispatch to the patisserie
+      const branchPhone = (selectedBranch.phone || '+90 544 648 60 40').replace(/[^0-9]/g, '');
+      const waMsg = formatCustomCakeWhatsAppMessage({
+        requestNumber: code,
+        branchName: selectedBranch.name,
+        customerName: name,
+        customerPhone: phone,
+        deliveryDate: date,
+        servingSize,
+        flavorPreference: flavor,
+        cakeMessage: message || undefined,
+        notes: notes || undefined,
+      });
+
+      const waUrl = `https://wa.me/${branchPhone}?text=${encodeURIComponent(waMsg)}`;
+      Linking.canOpenURL(waUrl)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(waUrl);
+          }
+        })
+        .catch(() => {});
     } catch (e: any) {
       Alert.alert('Hata', e.message || 'Talep iletilemedi');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenWhatsAppAgain = () => {
+    if (!submittedCode) return;
+    const branchPhone = (selectedBranch.phone || '+90 544 648 60 40').replace(/[^0-9]/g, '');
+    const waMsg = formatCustomCakeWhatsAppMessage({
+      requestNumber: submittedCode,
+      branchName: selectedBranch.name,
+      customerName: name,
+      customerPhone: phone,
+      deliveryDate: date,
+      servingSize,
+      flavorPreference: flavor,
+      cakeMessage: message || undefined,
+      notes: notes || undefined,
+    });
+    const waUrl = `https://wa.me/${branchPhone}?text=${encodeURIComponent(waMsg)}`;
+    Linking.openURL(waUrl).catch(() => {});
   };
 
   return (
@@ -67,6 +110,9 @@ export function CustomCakeScreen() {
           <Text style={styles.successDesc}>
             Ustalarımız talebinizi inceleyip {phone} numaralı telefonunuz üzerinden fiyat teklifi ve detaylar için sizinle iletişime geçecektir.
           </Text>
+          <TouchableOpacity style={[styles.resetBtn, { backgroundColor: '#16A34A', marginBottom: 10 }]} onPress={handleOpenWhatsAppAgain}>
+            <Text style={[styles.resetBtnText, { color: '#FFFFFF' }]}>WhatsApp ile Şubeye Yaz</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.resetBtn} onPress={() => setSubmittedCode(null)}>
             <Text style={styles.resetBtnText}>Yeni Talep Oluştur</Text>
           </TouchableOpacity>

@@ -1,0 +1,61 @@
+{
+  "updatedAt": "2026-10-15T01:00:00Z",
+  "account": "@yalcinpastaneleri",
+  "instagramUrl": "https://www.instagram.com/yalcinpastaneleri/",
+  "stories": [
+    {
+      "id": "story-1",
+      "title": "Fırından Taze",
+      "category": "Baklava & Şerbet",
+      "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/1438944075.jpeg",
+      "timestamp": "12d önce"
+    },
+    {
+      "id": "story-2",
+      "title": "Günün Pastası",
+      "category": "Orman Meyveli",
+      "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/523353097.jpeg",
+      "timestamp": "45d önce"
+    },
+    {
+      "id": "story-3",
+      "title": "Lotus Cheescake",
+      "category": "Spesiyal",
+      "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/629237750.jpeg",
+      "timestamp": "2s önce"
+    },
+    {
+      "id": "story-4",
+      "title": "Dubai Cup",
+      "category": "Yeni Lezzet",
+      "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/1177120236.jpeg",
+      "timestamp": "3s önce"
+    },
+    {
+      "id": "story-5",
+      "title": "Pavlova",
+      "category": "Hafif Tatlı",
+      "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/11469304.jpeg",
+      "timestamp": "5s önce"
+    }
+  ],
+  "latestReel": {
+    "id": "reel-1",
+    "title": "Emine Abla Mutfakta",
+    "caption": "1997'den beri geleneksel el açması lezzetler",
+    "posterUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/523353097.jpeg",
+    "videoUrl": "https://raw.githubusercontent.com/emrek0ca/yalcin-pastaneleri/main/assets/videos/emine-abla-uretim.mp4",
+    "views": "24.8B",
+    "likes": "1.4B",
+    "duration": "0:30",
+    "instagramUrl": "https://www.instagram.com/yalcinpastaneleri/"
+  },
+  "latestPost": {
+    "id": "post-1",
+    "title": "Özel Tasarım Doğum Günü Pastası",
+    "imageUrl": "https://qrmenu.yalcinpastaneleri.com/images/urunler/523353097.jpeg",
+    "date": "Bugün",
+    "likes": "428",
+    "instagramUrl": "https://www.instagram.com/yalcinpastaneleri/"
+  }
+}

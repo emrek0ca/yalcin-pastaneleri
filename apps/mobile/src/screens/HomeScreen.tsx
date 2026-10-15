@@ -7,11 +7,23 @@ import {
   TouchableOpacity,
   Image,
   Modal,
+  Linking,
+  Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useMobile } from '../context/MobileContext';
 import { VERIFIED_BRANCHES } from '@yalcin/shared';
-import { getProducts, getCategories, MobileProduct, MobileCategory } from '../api';
+import {
+  getProducts,
+  getCategories,
+  getInstagramFeed,
+  MobileProduct,
+  MobileCategory,
+  InstagramFeed,
+  InstagramStory,
+} from '../api';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface HomeScreenProps {
   onNavigateToMenu: (category?: string) => void;
@@ -22,30 +34,34 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
   const { selectedBranch, setSelectedBranch, addToCart } = useMobile();
   const [signatureItems, setSignatureItems] = useState<MobileProduct[]>([]);
   const [categories, setCategories] = useState<MobileCategory[]>([]);
+  const [feed, setFeed] = useState<InstagramFeed | null>(null);
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
-    async function loadInitial() {
+    async function loadData() {
       try {
-        const [cats, prods] = await Promise.all([
+        const [cats, prods, igFeed] = await Promise.all([
           getCategories(selectedBranch.id),
           getProducts({ branchId: selectedBranch.id }),
+          getInstagramFeed(),
         ]);
         if (isMounted) {
-          setCategories(cats.slice(0, 8)); // Top 8 categories
+          setCategories(cats.slice(0, 10));
           // Pick 6 prominent items with authentic pictures
           const signature = prods
             .filter((p) => p.imageUrl && p.imageUrl.length > 5)
             .slice(0, 6);
           setSignatureItems(signature);
+          setFeed(igFeed);
         }
       } catch (e) {
         console.warn('[HomeScreen] Error loading data:', e);
       }
     }
-    loadInitial();
+    loadData();
     return () => {
       isMounted = false;
     };
@@ -64,13 +80,26 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
     }, 1200);
   };
 
+  const handleOpenInstagram = (url?: string) => {
+    const targetUrl = url || feed?.instagramUrl || 'https://www.instagram.com/yalcinpastaneleri/';
+    Linking.openURL(targetUrl).catch(() => {});
+  };
+
+  const stories = feed?.stories || [];
+  const currentStory: InstagramStory | null =
+    activeStoryIndex !== null && stories[activeStoryIndex] ? stories[activeStoryIndex] : null;
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Top Header */}
+      {/* 1. Sleek Header */}
       <View style={styles.header}>
         <View style={styles.brandContainer}>
           <Text style={styles.brandTitle}>YALÇIN PASTANELERİ</Text>
-          <Text style={styles.brandSubtitle}>1997’den beri Pastaneci Emine Abla</Text>
+          <View style={styles.badgeRow}>
+            <Text style={styles.brandBadge}>1997</Text>
+            <Text style={styles.brandDot}>•</Text>
+            <Text style={styles.brandSubtitle}>OSMANİYE</Text>
+          </View>
         </View>
 
         {/* Branch Selector Pill */}
@@ -87,35 +116,111 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
         </TouchableOpacity>
       </View>
 
-      {/* Hero Banner Card */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroBadge}>
-          <Text style={styles.heroBadgeText}>OSMANİYE’NİN AİLE PASTANESİ</Text>
-        </View>
-        <Text style={styles.heroHeading}>Taze & Geleneksel Lezzetler</Text>
-        <Text style={styles.heroDesc}>
-          Usta ellerden günlük çıkan çıtır baklavalar, yaş pastalar ve sıcak mutfak lezzetleri.
-        </Text>
-        <View style={styles.heroActions}>
-          <TouchableOpacity
-            style={styles.heroPrimaryBtn}
-            onPress={() => onNavigateToMenu()}
-            activeOpacity={0.85}
+      {/* 2. INSTAGRAM STORIES BAR */}
+      {stories.length > 0 && (
+        <View style={styles.storiesSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.storiesScroll}
           >
-            <Text style={styles.heroPrimaryBtnText}>Menüyü İncele</Text>
-            <Feather name="arrow-right" size={14} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.heroSecondaryBtn}
-            onPress={onNavigateToCustomCake}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.heroSecondaryBtnText}>Özel Pasta</Text>
-          </TouchableOpacity>
+            {stories.map((story, index) => (
+              <TouchableOpacity
+                key={story.id}
+                style={styles.storyBubble}
+                onPress={() => setActiveStoryIndex(index)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.storyRing}>
+                  <Image source={{ uri: story.imageUrl }} style={styles.storyAvatar} />
+                </View>
+                <Text style={styles.storyTitle} numberOfLines={1}>
+                  {story.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      </View>
+      )}
 
-      {/* Quick Category Icons Strip */}
+      {/* 3. REELS VİTRİNİ (CANLI VİDEO / REEL KARTI) */}
+      {feed?.latestReel && (
+        <View style={styles.sectionPadding}>
+          <TouchableOpacity
+            style={styles.reelCard}
+            onPress={() => handleOpenInstagram(feed.latestReel.instagramUrl)}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{ uri: feed.latestReel.posterUrl }}
+              style={styles.reelBackground}
+              resizeMode="cover"
+            />
+            {/* Dark gradient overlay */}
+            <View style={styles.reelOverlay}>
+              <View style={styles.reelTopRow}>
+                <View style={styles.reelBadge}>
+                  <Feather name="video" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.reelBadgeText}>REELS</Text>
+                </View>
+                <View style={styles.reelAccountPill}>
+                  <Text style={styles.reelAccountText}>@yalcinpastaneleri</Text>
+                </View>
+              </View>
+
+              <View style={styles.reelCenterPlay}>
+                <View style={styles.playIconCircle}>
+                  <Feather name="play" size={20} color="#FFFFFF" style={{ marginLeft: 3 }} />
+                </View>
+              </View>
+
+              <View style={styles.reelBottomRow}>
+                <View>
+                  <Text style={styles.reelTitle}>{feed.latestReel.title}</Text>
+                  <Text style={styles.reelMeta}>{feed.latestReel.views} izlenme</Text>
+                </View>
+                <View style={styles.reelWatchBtn}>
+                  <Text style={styles.reelWatchText}>İzle</Text>
+                  <Feather name="arrow-right" size={12} color="#FFFFFF" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 4. GÜNÜN PAYLAŞIMI (INSTAGRAM FOTOĞRAFI) */}
+      {feed?.latestPost && (
+        <View style={styles.sectionPadding}>
+          <TouchableOpacity
+            style={styles.postCard}
+            onPress={() => handleOpenInstagram(feed.latestPost.instagramUrl)}
+            activeOpacity={0.9}
+          >
+            <Image
+              source={{ uri: feed.latestPost.imageUrl }}
+              style={styles.postImage}
+              resizeMode="cover"
+            />
+            <View style={styles.postOverlay}>
+              <View style={styles.postBadge}>
+                <Text style={styles.postBadgeText}>GÜNÜN PAYLAŞIMI</Text>
+              </View>
+              <View style={styles.postFooter}>
+                <Text style={styles.postTitle} numberOfLines={1}>
+                  {feed.latestPost.title}
+                </Text>
+                <View style={styles.postLikes}>
+                  <Feather name="heart" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.postLikesText}>{feed.latestPost.likes}</Text>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 5. KATEGORİLER */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Kategoriler</Text>
         <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
@@ -149,27 +254,28 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
         ))}
       </ScrollView>
 
-      {/* Custom Cake Banner */}
-      <TouchableOpacity
-        style={styles.customCakeCard}
-        onPress={onNavigateToCustomCake}
-        activeOpacity={0.9}
-      >
-        <View style={styles.customCakeContent}>
-          <Text style={styles.customCakeTag}>ÖZEL KUTLAMA TASARIMI</Text>
-          <Text style={styles.customCakeHeading}>Özel Gün Pastası Tasarla</Text>
-          <Text style={styles.customCakeDesc}>
-            Kişi sayısı, lezzet tercihi ve özel mesajınızla butik pasta talebinizi doğrudan şubeye iletin.
-          </Text>
-        </View>
-        <View style={styles.customCakeActionBox}>
-          <Feather name="arrow-right" size={18} color="#9E1B22" />
-        </View>
-      </TouchableOpacity>
+      {/* 6. ÖZEL GÜN PASTASI (MINIMAL GÖRSEL KART) */}
+      <View style={styles.sectionPadding}>
+        <TouchableOpacity
+          style={styles.customCakeCard}
+          onPress={onNavigateToCustomCake}
+          activeOpacity={0.9}
+        >
+          <View style={styles.customCakeContent}>
+            <View style={styles.customCakeBadge}>
+              <Text style={styles.customCakeBadgeText}>BUTİK SİPARİŞ</Text>
+            </View>
+            <Text style={styles.customCakeHeading}>Özel Gün Pastası Tasarla</Text>
+          </View>
+          <View style={styles.customCakeBtn}>
+            <Feather name="arrow-right" size={16} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      {/* Signature Items Section with Photos */}
+      {/* 7. İMZA LEZZETLER (GÖRSEL ODAKLI) */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>İmza Lezzetlerimiz</Text>
+        <Text style={styles.sectionTitle}>İmza Lezzetler</Text>
         <TouchableOpacity onPress={() => onNavigateToMenu()} activeOpacity={0.7}>
           <Text style={styles.sectionLink}>Tümünü Gör</Text>
         </TouchableOpacity>
@@ -202,11 +308,6 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
                 <Text style={styles.productName} numberOfLines={1}>
                   {item.title}
                 </Text>
-                {item.description ? (
-                  <Text style={styles.productDesc} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-                ) : null}
 
                 <View style={styles.productFooter}>
                   <Text style={styles.productPrice}>{item.priceFormatted}</Text>
@@ -217,12 +318,9 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
                   >
                     <Feather
                       name={isAdded ? 'check' : 'plus'}
-                      size={13}
+                      size={14}
                       color={isAdded ? '#FFFFFF' : '#9E1B22'}
                     />
-                    <Text style={[styles.addButtonText, isAdded && styles.addButtonTextSuccess]}>
-                      {isAdded ? 'Eklendi' : 'Ekle'}
-                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -231,7 +329,7 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
         })}
       </View>
 
-      {/* Authentic Branch Cards */}
+      {/* 8. ŞUBELER */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Şubelerimiz</Text>
       </View>
@@ -268,10 +366,15 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
                   <Feather name="clock" size={11} color="#737373" />
                   <Text style={styles.branchInfoText}>{b.openingHours}</Text>
                 </View>
-                <View style={styles.branchInfoItem}>
-                  <Feather name="phone" size={11} color="#737373" />
-                  <Text style={styles.branchInfoText}>{b.phone}</Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.branchInfoItem}
+                  onPress={() => Linking.openURL(`tel:${b.phone}`)}
+                >
+                  <Feather name="phone" size={11} color="#9E1B22" />
+                  <Text style={[styles.branchInfoText, { color: '#9E1B22', fontWeight: '600' }]}>
+                    {b.phone}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           );
@@ -279,6 +382,100 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
       </View>
 
       <View style={{ height: 40 }} />
+
+      {/* INSTAGRAM STORY VIEWER MODAL */}
+      <Modal
+        visible={activeStoryIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveStoryIndex(null)}
+      >
+        {currentStory && (
+          <View style={styles.storyModalContainer}>
+            {/* Top segmented progress bars */}
+            <View style={styles.storyProgressContainer}>
+              {stories.map((s, idx) => (
+                <View key={s.id} style={styles.storyProgressTrack}>
+                  <View
+                    style={[
+                      styles.storyProgressBar,
+                      {
+                        width:
+                          idx < (activeStoryIndex ?? 0)
+                            ? '100%'
+                            : idx === activeStoryIndex
+                            ? '100%'
+                            : '0%',
+                      },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+
+            {/* Story Header */}
+            <View style={styles.storyModalHeader}>
+              <View style={styles.storyUserWrap}>
+                <Image source={{ uri: currentStory.imageUrl }} style={styles.storyUserAvatar} />
+                <View>
+                  <Text style={styles.storyUserName}>@yalcinpastaneleri</Text>
+                  <Text style={styles.storyUserTime}>{currentStory.timestamp}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setActiveStoryIndex(null)}
+                style={styles.storyCloseBtn}
+              >
+                <Feather name="x" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Story Image */}
+            <Image
+              source={{ uri: currentStory.imageUrl }}
+              style={styles.storyModalImage}
+              resizeMode="contain"
+            />
+
+            {/* Story Title & Action */}
+            <View style={styles.storyModalFooter}>
+              <View style={styles.storyBadge}>
+                <Text style={styles.storyBadgeText}>{currentStory.category}</Text>
+              </View>
+              <Text style={styles.storyModalTitle}>{currentStory.title}</Text>
+
+              <TouchableOpacity
+                style={styles.storyIgBtn}
+                onPress={() => handleOpenInstagram()}
+                activeOpacity={0.85}
+              >
+                <Feather name="external-link" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.storyIgBtnText}>Instagram'da Gör</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Left / Right touch navigation zones */}
+            <TouchableOpacity
+              style={styles.storyNavLeft}
+              onPress={() => {
+                if ((activeStoryIndex ?? 0) > 0) {
+                  setActiveStoryIndex((activeStoryIndex ?? 0) - 1);
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={styles.storyNavRight}
+              onPress={() => {
+                if ((activeStoryIndex ?? 0) < stories.length - 1) {
+                  setActiveStoryIndex((activeStoryIndex ?? 0) + 1);
+                } else {
+                  setActiveStoryIndex(null);
+                }
+              }}
+            />
+          </View>
+        )}
+      </Modal>
 
       {/* Branch Selector Modal */}
       <Modal
@@ -299,9 +496,6 @@ export function HomeScreen({ onNavigateToMenu, onNavigateToCustomCake }: HomeScr
                 <Feather name="x" size={18} color="#737373" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalDesc}>
-              Siparişinizin hazırlanacağı şubeyi seçin. Menü ve teslimat koşulları şubeye göre güncellenir.
-            </Text>
 
             <View style={styles.modalBranchList}>
               {VERIFIED_BRANCHES.map((b) => {
@@ -347,22 +541,37 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#EAEAEA',
+    borderBottomColor: '#F0F0F0',
   },
   brandContainer: {
     flex: 1,
   },
   brandTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#1C1C1C',
     letterSpacing: 0.5,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 5,
+  },
+  brandBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#9E1B22',
+  },
+  brandDot: {
+    fontSize: 10,
+    color: '#A3A3A3',
+  },
   brandSubtitle: {
     fontSize: 10,
     color: '#737373',
-    fontWeight: '500',
-    marginTop: 1,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   branchButton: {
     flexDirection: 'row',
@@ -381,86 +590,214 @@ const styles = StyleSheet.create({
     color: '#1C1C1C',
     maxWidth: 90,
   },
-  heroCard: {
-    margin: 16,
-    padding: 20,
+  // Stories Section
+  storiesSection: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  heroBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FBF0F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    marginBottom: 8,
+  storiesScroll: {
+    paddingHorizontal: 12,
+    gap: 14,
   },
-  heroBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#9E1B22',
-    letterSpacing: 0.6,
-  },
-  heroHeading: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1C1C1C',
-    lineHeight: 26,
-  },
-  heroDesc: {
-    fontSize: 12,
-    color: '#737373',
-    lineHeight: 18,
-    marginTop: 6,
-  },
-  heroActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
-  },
-  heroPrimaryBtn: {
-    flexDirection: 'row',
+  storyBubble: {
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#9E1B22',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    width: 68,
   },
-  heroPrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  heroSecondaryBtn: {
+  storyRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    padding: 2.5,
+    borderWidth: 2.5,
+    borderColor: '#9E1B22',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F5F5',
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
   },
-  heroSecondaryBtnText: {
+  storyAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EAEAEA',
+  },
+  storyTitle: {
+    fontSize: 10,
+    fontWeight: '600',
     color: '#1C1C1C',
-    fontSize: 12,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  sectionPadding: {
+    paddingHorizontal: 16,
+    marginTop: 14,
+  },
+  // Reels Card
+  reelCard: {
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    position: 'relative',
+  },
+  reelBackground: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.85,
+  },
+  reelOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  reelTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#9E1B22',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  reelBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  reelAccountPill: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  reelAccountText: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '600',
   },
+  reelCenterPlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reelBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  reelTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  reelMeta: {
+    color: '#E0E0E0',
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  reelWatchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#9E1B22',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  reelWatchText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Post Card
+  postCard: {
+    height: 150,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    position: 'relative',
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+  },
+  postOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  postBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  postBadgeText: {
+    color: '#1C1C1C',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  postFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  postTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
+  postLikes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  postLikesText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Categories
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 15,
@@ -474,24 +811,22 @@ const styles = StyleSheet.create({
   },
   categoryScroll: {
     paddingHorizontal: 16,
-    gap: 10,
-    paddingBottom: 8,
+    gap: 12,
   },
   catCard: {
     alignItems: 'center',
     width: 72,
-    gap: 6,
   },
   catIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F5F5F5',
     borderWidth: 1,
     borderColor: '#EAEAEA',
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   catImg: {
     width: '100%',
@@ -500,70 +835,69 @@ const styles = StyleSheet.create({
   catName: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#525252',
+    color: '#1C1C1C',
+    marginTop: 6,
     textAlign: 'center',
   },
+  // Custom Cake Banner
   customCakeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    backgroundColor: '#1C1C1C',
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#EAEAEA',
-    gap: 12,
+    padding: 16,
   },
   customCakeContent: {
     flex: 1,
   },
-  customCakeTag: {
-    fontSize: 9,
+  customCakeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#9E1B22',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  customCakeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
     fontWeight: '800',
-    color: '#9E1B22',
     letterSpacing: 0.5,
   },
   customCakeHeading: {
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
-    color: '#1C1C1C',
-    marginTop: 2,
   },
-  customCakeDesc: {
-    fontSize: 11,
-    color: '#737373',
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  customCakeActionBox: {
+  customCakeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FBF0F0',
+    backgroundColor: '#9E1B22',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
   },
+  // Signature Items Grid
   signatureGrid: {
-    paddingHorizontal: 16,
-    gap: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
   },
   productCard: {
+    width: (SCREEN_WIDTH - 36) / 2,
+    marginHorizontal: 3,
+    marginBottom: 10,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#EAEAEA',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
   },
   productImageContainer: {
     width: '100%',
-    height: 140,
+    height: 120,
     backgroundColor: '#F5F5F5',
     position: 'relative',
   },
@@ -572,96 +906,79 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   productImagePlaceholder: {
-    flex: 1,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   productBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(28,28,28,0.7)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   productBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#9E1B22',
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
   },
   productBody: {
-    padding: 12,
+    padding: 8,
   },
   productName: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
     color: '#1C1C1C',
-  },
-  productDesc: {
-    fontSize: 11,
-    color: '#737373',
-    lineHeight: 16,
-    marginTop: 3,
   },
   productFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    marginTop: 6,
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#1C1C1C',
+    color: '#9E1B22',
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#FBF0F0',
     borderWidth: 1,
-    borderColor: '#9E1B22',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
+    borderColor: '#F2D6D6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addButtonSuccess: {
     backgroundColor: '#16A34A',
     borderColor: '#16A34A',
   },
-  addButtonText: {
-    color: '#9E1B22',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  addButtonTextSuccess: {
-    color: '#FFFFFF',
-  },
+  // Branches
   branchesContainer: {
     paddingHorizontal: 16,
     gap: 10,
   },
   branchCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#EAEAEA',
-    padding: 14,
-    gap: 6,
+    borderRadius: 12,
+    padding: 12,
   },
   branchCardActive: {
     borderColor: '#9E1B22',
-    backgroundColor: '#FDFBFB',
+    backgroundColor: '#FCFAFA',
   },
   branchHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
   branchTitleWrap: {
     flexDirection: 'row',
@@ -670,25 +987,25 @@ const styles = StyleSheet.create({
   },
   branchName: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#1C1C1C',
   },
   activeCheck: {
+    backgroundColor: '#9E1B22',
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#9E1B22',
     alignItems: 'center',
     justifyContent: 'center',
   },
   branchAddress: {
     fontSize: 11,
     color: '#737373',
+    marginBottom: 6,
   },
   branchInfoRow: {
     flexDirection: 'row',
     gap: 14,
-    marginTop: 2,
   },
   branchInfoItem: {
     flexDirection: 'row',
@@ -696,53 +1013,164 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   branchInfoText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#737373',
   },
+  // Story Modal
+  storyModalContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  storyProgressContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingTop: 50,
+    gap: 4,
+    zIndex: 10,
+  },
+  storyProgressTrack: {
+    flex: 1,
+    height: 2.5,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  storyProgressBar: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+  },
+  storyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    zIndex: 10,
+  },
+  storyUserWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  storyUserAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#9E1B22',
+  },
+  storyUserName: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  storyUserTime: {
+    color: '#B3B3B3',
+    fontSize: 10,
+  },
+  storyCloseBtn: {
+    padding: 6,
+  },
+  storyModalImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 1.25,
+    alignSelf: 'center',
+  },
+  storyModalFooter: {
+    padding: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  storyBadge: {
+    backgroundColor: '#9E1B22',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  storyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  storyModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  storyIgBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#9E1B22',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  storyIgBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  storyNavLeft: {
+    position: 'absolute',
+    top: 100,
+    bottom: 120,
+    left: 0,
+    width: SCREEN_WIDTH * 0.4,
+    zIndex: 5,
+  },
+  storyNavRight: {
+    position: 'absolute',
+    top: 100,
+    bottom: 120,
+    right: 0,
+    width: SCREEN_WIDTH * 0.4,
+    zIndex: 5,
+  },
+  // Branch Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 16,
     padding: 20,
-    gap: 12,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#1C1C1C',
   },
-  modalDesc: {
-    fontSize: 12,
-    color: '#737373',
-    lineHeight: 16,
-  },
   modalBranchList: {
     gap: 10,
-    marginTop: 4,
-    paddingBottom: 20,
   },
   modalBranchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#F9F9F9',
+    padding: 12,
     borderWidth: 1,
     borderColor: '#EAEAEA',
+    borderRadius: 10,
   },
   modalBranchItemActive: {
     borderColor: '#9E1B22',
-    backgroundColor: '#FDFBFB',
+    backgroundColor: '#FBF0F0',
   },
   modalBranchName: {
     fontSize: 13,
