@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function AboutPage() {
   return (
@@ -37,7 +38,7 @@ export default function AboutPage() {
 
         <div className="md:col-span-5 rounded-lg overflow-hidden border border-border bg-white shadow-xs">
           <img
-            src="/assets/categories/275365032.jpeg"
+            src={getAssetUrl('/assets/categories/275365032.jpeg')}
             alt="Yalçın Pastaneleri Geleneksel Baklava Ustalığı"
             className="w-full h-64 object-cover"
           />

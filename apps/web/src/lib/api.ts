@@ -1,5 +1,6 @@
 import { Branch, Category, Product, Order, CustomCakeRequest, VERIFIED_BRANCHES } from '@yalcin/shared';
 import catalogData from '../../../../assets/catalog.json';
+import { getAssetUrl } from './assets';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/emrek0ca/yalcin-pastaneleri/main';
@@ -15,7 +16,7 @@ function getOfflineCategories(): Category[] {
       name: clean,
       slug,
       displayOrder: idx + 1,
-      imageUrl: firstItem?.raw_image_url || undefined,
+      imageUrl: firstItem?.local_asset ? getAssetUrl(firstItem.local_asset) : firstItem?.raw_image_url || undefined,
       description: clean,
       branchSpecific: isAdnanOnly ? 'adnan-menderes' : undefined,
       status: 'verified',
@@ -40,7 +41,7 @@ function getOfflineProducts(): Product[] {
         description: item.description || '',
         basePriceCents: priceCents,
         rawImageUrl: item.raw_image_url || null,
-        localAsset: item.local_asset || null,
+        localAsset: item.local_asset ? getAssetUrl(item.local_asset) : null,
         isAvailable: true,
         isDeliveryAvailable: true,
         status: 'verified',

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Plus, Check, Info } from 'lucide-react';
 import { Product } from '@yalcin/shared';
 import { useCart } from '../context/CartContext';
+import { getAssetUrl } from '@/lib/assets';
 
 interface ProductCardProps {
   product: Product;
@@ -26,7 +27,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
       name: product.name,
       unitPriceCents: product.basePriceCents,
       quantity: 1,
-      imageUrl: product.localAsset || product.rawImageUrl,
+      imageUrl: getAssetUrl(product.localAsset || product.rawImageUrl),
     });
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1200);
@@ -39,9 +40,9 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
     >
       {/* Product Image Frame */}
       <div className="aspect-[4/3] w-full bg-background-alt overflow-hidden relative">
-        {product.localAsset ? (
+        {product.localAsset || product.rawImageUrl ? (
           <img
-            src={product.localAsset}
+            src={getAssetUrl(product.localAsset || product.rawImageUrl)}
             alt={product.name}
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"

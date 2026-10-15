@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight, AlertCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useBranch } from '../context/BranchContext';
+import { getAssetUrl } from '@/lib/assets';
 
 export function CartDrawer() {
   const { items, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, subtotalCents, subtotalFormatted } = useCart();
@@ -71,7 +72,7 @@ export function CartDrawer() {
                   <div className="w-16 h-16 rounded-lg bg-neutral-100 overflow-hidden relative shrink-0 border border-border">
                     {item.imageUrl ? (
                       <img
-                        src={item.imageUrl}
+                        src={getAssetUrl(item.imageUrl)}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

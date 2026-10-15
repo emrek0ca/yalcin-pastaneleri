@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { VERIFIED_BRANCHES } from '@yalcin/shared';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function HomePage() {
   const featuredCategories = [
@@ -9,37 +10,37 @@ export default function HomePage() {
       name: 'Şerbetli Tatlılar',
       slug: 'serbetli-tatlilar',
       desc: 'Fıstıklı baklava, şöbiyet, katmer ve geleneksel lezzetler.',
-      image: '/assets/categories/275365032.jpeg',
+      image: getAssetUrl('/assets/categories/275365032.jpeg'),
     },
     {
       name: 'Adet Pastalar',
       slug: 'adet-pastalar',
       desc: 'Orman meyveli, pavlova, San Sebastian ve cheesecake çeşitleri.',
-      image: '/assets/categories/895267197.jpeg',
+      image: getAssetUrl('/assets/categories/895267197.jpeg'),
     },
     {
       name: 'Sütlü Tatlılar',
       slug: 'sutlu-tatlilar',
       desc: 'Profiterol, kazandibi, fıstıklı ve meyveli kup tatlılar.',
-      image: '/assets/categories/110181517.jpeg',
+      image: getAssetUrl('/assets/categories/110181517.jpeg'),
     },
     {
       name: 'Çikolata & Atölye',
       slug: 'cikolata-cesitleri',
       desc: 'Özel yapım Dubai çikolatası ve el yapımı spesiyaller.',
-      image: '/assets/categories/254860235.jpeg',
+      image: getAssetUrl('/assets/categories/254860235.jpeg'),
     },
     {
       name: 'Kahvaltı & Fırın',
       slug: 'kahvaltilar',
       desc: 'Serpme kahvaltı, sıcak sıkmalar ve çıtır börekler.',
-      image: '/assets/categories/2067783193.jpeg',
+      image: getAssetUrl('/assets/categories/2067783193.jpeg'),
     },
     {
       name: 'Restoran & Mutfak',
       slug: 'pizza',
       desc: 'Adnan Menderes şubemizde pizza, burger ve dünya mutfağı.',
-      image: '/assets/categories/1008122358.jpeg',
+      image: getAssetUrl('/assets/categories/1008122358.jpeg'),
     },
   ];
 
@@ -49,28 +50,28 @@ export default function HomePage() {
       category: 'Şerbetli Tatlılar',
       price: '250 ₺',
       desc: 'Hakiki Antep fıstığı ve çıtır yufkasıyla 4 dilim porsiyon.',
-      image: '/assets/products/1438944075.jpeg',
+      image: getAssetUrl('/assets/products/1438944075.jpeg'),
     },
     {
       name: 'Orman Meyveli Pasta',
       category: 'Adet Pastalar',
       price: '280 ₺',
       desc: 'Taze mevsim orman meyveleri ve hafif pastacı kreması.',
-      image: '/assets/products/523353097.jpeg',
+      image: getAssetUrl('/assets/products/523353097.jpeg'),
     },
     {
       name: 'Dubai Çikolatası',
       category: 'Çikolata Çeşitleri',
       price: '350 ₺',
       desc: 'Kavrulmuş kadayıf ve Antep fıstığı ezmesi dolgulu.',
-      image: '/assets/products/2070389173.jpeg',
+      image: getAssetUrl('/assets/products/2070389173.jpeg'),
     },
     {
       name: 'Lotus Cheesecake',
       category: 'Adet Pastalar',
       price: '320 ₺',
       desc: 'Orijinal bisküvi tabanı ve karamelli Lotus kreması.',
-      image: '/assets/products/629237750.jpeg',
+      image: getAssetUrl('/assets/products/629237750.jpeg'),
     },
   ];
 
@@ -81,7 +82,7 @@ export default function HomePage() {
         {/* Mobile Full-Screen Video Background (Video nefes alıyor, yüzler ve detaylar net açık) */}
         <div className="absolute inset-0 lg:hidden pointer-events-none">
           <video
-            src="/assets/videos/emine-abla-uretim.mp4"
+            src={getAssetUrl('/assets/videos/emine-abla-uretim.mp4')}
             autoPlay
             loop
             muted
@@ -150,7 +151,7 @@ export default function HomePage() {
             <div className="hidden lg:block lg:col-span-5">
               <div className="w-full h-[500px] xl:h-[540px] rounded-2xl overflow-hidden bg-black shadow-lg">
                 <video
-                  src="/assets/videos/emine-abla-uretim.mp4"
+                  src={getAssetUrl('/assets/videos/emine-abla-uretim.mp4')}
                   autoPlay
                   loop
                   muted

@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { MapPin, Phone, Instagram, Clock, ShieldCheck, Heart } from 'lucide-react';
 import { BRAND_INFO, VERIFIED_BRANCHES } from '@yalcin/shared';
+import { getAssetUrl } from '@/lib/assets';
 
 export function Footer() {
   return (
@@ -11,7 +12,7 @@ export function Footer() {
           {/* Brand Col */}
           <div className="space-y-4">
             <img
-              src="/assets/brand/logo.png"
+              src={getAssetUrl('/assets/brand/logo.png')}
               alt="Yalçın Pastaneleri"
               className="h-12 w-auto brightness-0 invert"
             />

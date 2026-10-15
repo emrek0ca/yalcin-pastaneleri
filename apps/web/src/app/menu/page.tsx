@@ -9,6 +9,7 @@ import { Product } from '@yalcin/shared';
 import catalogData from '../../../../../assets/catalog.json';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import { getAssetUrl } from '@/lib/assets';
 
 export default function MenuPage() {
   const { selectedBranch, setSelectedBranchId, branches } = useBranch();
@@ -34,7 +35,7 @@ export default function MenuPage() {
           slug: item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           description: item.description || null,
           rawImageUrl: item.raw_image_url || null,
-          localAsset: item.local_asset ? `/${item.local_asset}` : null,
+          localAsset: item.local_asset ? getAssetUrl(item.local_asset) : null,
           basePriceCents: item.price_cents,
           isAvailable: true,
           isDeliveryAvailable: true,
@@ -65,7 +66,7 @@ export default function MenuPage() {
               slug: data.slug,
               description: data.description || null,
               rawImageUrl: data.rawImageUrl || null,
-              localAsset: data.localAsset ? (data.localAsset.startsWith('/') ? data.localAsset : `/${data.localAsset}`) : null,
+              localAsset: data.localAsset ? getAssetUrl(data.localAsset) : null,
               basePriceCents: Number(data.basePriceCents),
               isAvailable: data.isAvailable ?? true,
               isDeliveryAvailable: data.isDeliveryAvailable ?? true,
@@ -122,7 +123,7 @@ export default function MenuPage() {
       name: activeModalProduct.name,
       unitPriceCents: activeModalProduct.basePriceCents,
       quantity: 1,
-      imageUrl: activeModalProduct.localAsset || activeModalProduct.rawImageUrl,
+      imageUrl: getAssetUrl(activeModalProduct.localAsset || activeModalProduct.rawImageUrl),
     });
     setModalAdded(true);
     setTimeout(() => {
@@ -263,9 +264,9 @@ export default function MenuPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="aspect-[4/3] w-full bg-neutral-100 relative overflow-hidden">
-              {activeModalProduct.localAsset ? (
+              {activeModalProduct.localAsset || activeModalProduct.rawImageUrl ? (
                 <img
-                  src={activeModalProduct.localAsset}
+                  src={getAssetUrl(activeModalProduct.localAsset || activeModalProduct.rawImageUrl)}
                   alt={activeModalProduct.name}
                   className="w-full h-full object-cover"
                 />

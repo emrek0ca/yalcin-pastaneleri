@@ -7,12 +7,14 @@ import { BranchProvider } from '@/context/BranchContext';
 import { CartProvider } from '@/context/CartContext';
 import { BRAND_INFO } from '@yalcin/shared';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export const metadata: Metadata = {
   title: `${BRAND_INFO.name} — Osmaniye'nin En Lezzetli Mekanı`,
   description:
     '1997’den beri Pastaneci Emine Abla. Taptaze baklavalar, özel gün pastaları, sütlü tatlılar, çikolatalar ve zengin dünya mutfağı. Osmaniye Merkez Raufbey ve Adnan Menderes şubeleriyle hizmetinizde.',
   icons: {
-    icon: '/assets/brand/favicon.png',
+    icon: `${basePath}/assets/brand/favicon.png`,
   },
   openGraph: {
     title: 'Yalçın Pastaneleri — Osmaniye',

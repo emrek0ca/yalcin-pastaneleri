@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { getAssetUrl } from '@/lib/assets';
 import { usePathname } from 'next/navigation';
 import { ShoppingBag, ChevronDown, Menu, X, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -40,7 +41,7 @@ export function Navbar() {
         {/* Brand Logo */}
         <Link href="/" className="flex items-center">
           <img
-            src="/assets/brand/logo.png"
+            src={getAssetUrl('/assets/brand/logo.png')}
             alt="Yalçın Pastaneleri"
             className="h-11 w-auto object-contain"
           />
